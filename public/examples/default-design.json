@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "name": "Default Colorado xeriscape concept",
   "updatedAt": "2026-06-13T00:00:00.000Z",
   "siteDimensions": {
@@ -19,9 +19,9 @@
     "rightBoundaryX": 66,
     "slope": { "direction": "street-to-house", "grade": "moderate" },
     "existingPlants": {
-      "ornamentalCherry": { "x": 8, "y": 24, "canopyRadius": 6, "locked": true, "commonName": "Existing ornamental cherry", "silhouette": "ornamental cherry canopy", "color": "#d8a6b6" },
-      "maple": { "x": 53, "y": 46, "canopyRadius": 7, "locked": true, "commonName": "Existing maple", "silhouette": "existing maple canopy", "color": "#8cb36a" },
-      "blueSpruce": { "x": 58, "y": 14, "canopyRadius": 6, "locked": true, "commonName": "Existing blue spruce", "silhouette": "existing blue spruce", "color": "#5d7f93" }
+      "ornamentalCherry": { "x": 8, "y": 24, "canopyRadius": 6, "locked": false, "commonName": "Existing ornamental cherry", "silhouette": "ornamental cherry canopy", "color": "#d8a6b6" },
+      "maple": { "x": 53, "y": 46, "canopyRadius": 7, "locked": false, "commonName": "Existing maple", "silhouette": "existing maple canopy", "color": "#8cb36a" },
+      "blueSpruce": { "x": 58, "y": 14, "canopyRadius": 6, "locked": false, "commonName": "Existing blue spruce", "silhouette": "existing blue spruce", "color": "#5d7f93" }
     },
     "utilityCovers": [
       { "id": "utility-main", "x": 30, "y": 48, "width": 2, "height": 2, "shape": "circle", "locked": false, "avoidPlanting": true }
