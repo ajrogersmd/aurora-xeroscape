@@ -1,4 +1,4 @@
-import { MATERIAL_LABELS, PLANT_PALETTE } from '../data'
+import { MATERIAL_LABELS } from '../data'
 import { getMaterialLabel, plantDefinitionById } from '../lib/utils'
 import type { DesignState } from '../types'
 

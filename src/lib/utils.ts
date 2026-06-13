@@ -1,6 +1,5 @@
 import { MATERIAL_LABELS, PIXELS_PER_FOOT, PLANT_PALETTE } from '../data'
 import type {
-  Boulder,
   DesignState,
   ExistingPlantKey,
   MaterialType,
@@ -131,12 +130,13 @@ export const validateDesign = (design: DesignState) => {
 
   ;(['ornamentalCherry', 'maple', 'blueSpruce'] as ExistingPlantKey[]).forEach((key) => {
     const plant = siteDimensions.existingPlants[key]
+    if (plant.locked) return
     const inDriveway =
-      plant.x >= siteDimensions.driveway.x &&
-      plant.x <= siteDimensions.driveway.x + siteDimensions.driveway.width &&
-      plant.y >= siteDimensions.driveway.y &&
-      plant.y <= siteDimensions.driveway.y + siteDimensions.driveway.depth
-    const inSidewalk = plant.y >= siteDimensions.sidewalk.y && plant.y <= siteDimensions.sidewalk.y + siteDimensions.sidewalk.depth
+      plant.x > siteDimensions.driveway.x &&
+      plant.x < siteDimensions.driveway.x + siteDimensions.driveway.width &&
+      plant.y > siteDimensions.driveway.y &&
+      plant.y < siteDimensions.driveway.y + siteDimensions.driveway.depth
+    const inSidewalk = plant.y > siteDimensions.sidewalk.y && plant.y < siteDimensions.sidewalk.y + siteDimensions.sidewalk.depth
     if (inDriveway || inSidewalk) {
       warnings.push(`${plant.commonName} overlaps the driveway or sidewalk footprint.`)
     }
@@ -149,14 +149,14 @@ export const validateDesign = (design: DesignState) => {
   return Array.from(new Set(warnings))
 }
 
-export const getBoulderPoints = (boulder: Boulder) => {
-  const radius = boulder.sizeFt * 0.55
+export const getBoulderPoints = (sizeFt: number, seed: number) => {
+  const radius = sizeFt * 0.55
   const points: number[] = []
   for (let index = 0; index < 7; index += 1) {
     const angle = (Math.PI * 2 * index) / 7
-    const variance = 0.82 + ((((boulder.seed + index * 13) % 9) - 4) * 0.05)
-    points.push((Math.cos(angle) * radius * variance + boulder.x) * PIXELS_PER_FOOT)
-    points.push((Math.sin(angle) * radius * variance + boulder.y) * PIXELS_PER_FOOT)
+    const variance = 0.82 + ((((seed + index * 13) % 9) - 4) * 0.05)
+    points.push(Math.cos(angle) * radius * variance * PIXELS_PER_FOOT)
+    points.push(Math.sin(angle) * radius * variance * PIXELS_PER_FOOT)
   }
   return points
 }

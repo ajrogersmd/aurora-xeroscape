@@ -3,7 +3,7 @@ import type Konva from 'konva'
 import './App.css'
 import { TopDownPlan } from './components/TopDownPlan'
 import { StreetView } from './components/StreetView'
-import { DEFAULT_DESIGN, MATERIAL_LABELS, PIXELS_PER_FOOT, PLANT_PALETTE, PRESET_KEY, STORAGE_KEY } from './data'
+import { DEFAULT_DESIGN, MATERIAL_LABELS, PLANT_PALETTE, PRESET_KEY, STORAGE_KEY } from './data'
 import { cloneDesign, createPromptText, getSelectionSummary, plantDefinitionById, validateDesign } from './lib/utils'
 import type { Boulder, DesignState, MaterialType, Selection } from './types'
 

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
-import { MATERIAL_LABELS, PIXELS_PER_FOOT, PLANT_PALETTE } from '../data'
+import { MATERIAL_LABELS, PIXELS_PER_FOOT } from '../data'
 import { clamp, feetToPixels, formatFeet, getBoulderPoints, getPlantLabel, plantDefinitionById, roundToGrid } from '../lib/utils'
 import type { Boulder, DesignState, ExistingPlantKey, MaterialType, Selection, SurfaceZoneKey } from '../types'
 
@@ -33,7 +33,6 @@ type Props = {
   onExportReady: (stage: Konva.Stage | null) => void
 }
 
-const riverHitWidth = 14
 
 export function TopDownPlan({
   design,
@@ -241,6 +240,10 @@ export function TopDownPlan({
               }
               const x = (position.x - stagePosition.x) / zoom / PIXELS_PER_FOOT
               const y = (position.y - stagePosition.y) / zoom / PIXELS_PER_FOOT
+              if (activeDrop) {
+                addDroppedItem(activeDrop, x, y)
+                return
+              }
               if (activeRiverEdit) {
                 setDesign((draft) => {
                   draft.dryRiverBed.points.push({
@@ -373,23 +376,25 @@ export function TopDownPlan({
             ))}
 
             {design.boulders.map((boulder) => (
-              <Group key={boulder.id} rotation={boulder.rotation}>
+              <Group
+                key={boulder.id}
+                x={feetToPixels(boulder.x)}
+                y={feetToPixels(boulder.y)}
+                rotation={boulder.rotation}
+                draggable={!boulder.locked}
+                onClick={() => setSelection({ kind: 'boulder', id: boulder.id })}
+                onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                onDragEnd={() => commitDrag()}
+              >
                 <Line
-                  points={getBoulderPoints(boulder)}
+                  points={getBoulderPoints(boulder.sizeFt, boulder.seed)}
                   closed
                   fill="#a8a29e"
                   stroke={selection?.kind === 'boulder' && selection.id === boulder.id ? '#0f172a' : '#57534e'}
                   strokeWidth={2}
-                  draggable={!boulder.locked}
-                  onClick={() => setSelection({ kind: 'boulder', id: boulder.id })}
-                  onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT + boulder.x, event.target.y() / PIXELS_PER_FOOT + boulder.y)}
-                  onDragEnd={(event) => {
-                    event.target.position({ x: 0, y: 0 })
-                    commitDrag()
-                  }}
                 />
                 {design.settings.showLabels && boulder.labelVisible && (
-                  <Text x={feetToPixels(boulder.x) + 6} y={feetToPixels(boulder.y) + 4} text={shapeLabel(boulder)} fontSize={11} fill="#3f3f46" />
+                  <Text x={6} y={4} text={shapeLabel(boulder)} fontSize={11} fill="#3f3f46" />
                 )}
               </Group>
             ))}
