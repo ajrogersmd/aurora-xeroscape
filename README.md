@@ -71,9 +71,10 @@ VITE_BASE_PATH=/custom-subpath/ npm run build
 
 ## App usage summary
 
-- Drag plants from the palette into the top-down plan.
+- Click a plant or placement tool in the palette, then click the top-down plan to place it.
 - Click planting zones to paint materials.
 - Toggle dry river editing, then click the plan to add river control points.
+- Use **Select in plan** in the yard layout panel to highlight and drag base-scene footprints.
 - Select plants, boulders, utility covers, trees, or river points to edit them numerically.
 - Use the **Street View** tab to preview massing and sight lines.
 - Use the prompt buttons to copy realistic render instructions into ChatGPT image generation.

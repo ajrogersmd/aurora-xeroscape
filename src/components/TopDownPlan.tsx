@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
-import { MATERIAL_LABELS, PIXELS_PER_FOOT } from '../data'
-import { clamp, feetToPixels, formatFeet, getBoulderPoints, getPlantLabel, plantDefinitionById, roundToGrid } from '../lib/utils'
-import type { Boulder, DesignState, ExistingPlantKey, MaterialType, Selection, SurfaceZoneKey } from '../types'
+import { MATERIAL_LABELS, PIXELS_PER_FOOT, SITE_RECT_LABELS } from '../data'
+import { clamp, coerceWithinSite, feetToPixels, formatFeet, getBoulderPoints, getPlantLabel, plantDefinitionById, roundToGrid } from '../lib/utils'
+import type { Boulder, DesignState, ExistingPlantKey, MaterialType, Selection, SiteRectKey, SurfaceZoneKey } from '../types'
 
 type PaletteDrop =
   | { kind: 'plant'; plantId: string }
@@ -47,7 +47,6 @@ export function TopDownPlan({
   clearActiveDrop,
   onExportReady,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null)
   const stageRef = useRef<Konva.Stage | null>(null)
   const [zoom, setZoom] = useState(1)
   const [stagePosition, setStagePosition] = useState({ x: 12, y: 12 })
@@ -59,17 +58,7 @@ export function TopDownPlan({
   const siteWidth = feetToPixels(design.siteDimensions.totalFrontage)
   const siteHeight = feetToPixels(design.siteDimensions.totalDepth)
   const gridStep = feetToPixels(design.siteDimensions.gridFeet)
-
-  const normalizedPosition = (clientX: number, clientY: number) => {
-    const rect = containerRef.current?.getBoundingClientRect()
-    if (!rect) return null
-    const x = (clientX - rect.left - stagePosition.x) / zoom / PIXELS_PER_FOOT
-    const y = (clientY - rect.top - stagePosition.y) / zoom / PIXELS_PER_FOOT
-    return {
-      x: clamp(x, 0, design.siteDimensions.totalFrontage),
-      y: clamp(y, 0, design.siteDimensions.totalDepth),
-    }
-  }
+  const activeSiteRectKey = selection?.kind === 'siteRect' ? selection.id : null
 
   const applyPosition = (nextSelection: ActiveSelection, x: number, y: number) => {
     if (selection?.kind !== nextSelection.kind || selection.id !== nextSelection.id) {
@@ -116,6 +105,18 @@ export function TopDownPlan({
   }
 
   const commitDrag = () => setDesign(() => undefined, true)
+
+  const applySiteRectPosition = (section: SiteRectKey, x: number, y: number) => {
+    setSelection({ kind: 'siteRect', id: section })
+    setDesign((draft) => {
+      const rect = draft.siteDimensions[section] as DesignState['siteDimensions']['house']
+      const nextX = draft.settings.snapToGrid ? roundToGrid(x, draft.siteDimensions.gridFeet / 2) : x
+      const nextY = draft.settings.snapToGrid ? roundToGrid(y, draft.siteDimensions.gridFeet / 2) : y
+      const nextPosition = coerceWithinSite(draft.siteDimensions, nextX, nextY, rect.width, rect.depth)
+      rect.x = nextPosition.x
+      rect.y = nextPosition.y
+    }, false)
+  }
 
   const addDroppedItem = (payload: PaletteDrop, x: number, y: number) => {
     setDesign((draft) => {
@@ -175,6 +176,7 @@ export function TopDownPlan({
         strokeWidth={1}
         cornerRadius={6}
         onClick={() => {
+          if (activeDrop || activeRiverEdit) return
           setSelection(null)
           setDesign((draft) => {
             draft.surfaceZones[key] = activePaintMaterial
@@ -193,7 +195,15 @@ export function TopDownPlan({
   return (
     <div className="plan-shell">
       <div className="plan-toolbar">
-        <span>Drop plants from the palette into the plan.</span>
+        <span>
+          {activeDrop
+            ? 'Click anywhere in the plan to place the selected item.'
+            : activeRiverEdit
+              ? 'Click in the plan to add river points, or drag existing points to reshape the bed.'
+            : activeSiteRectKey
+              ? 'Drag the highlighted footprint to edit the base scene.'
+              : 'Click a palette item to place it or select a site-model footprint to edit it.'}
+        </span>
         <label>
           Zoom
           <input
@@ -209,19 +219,7 @@ export function TopDownPlan({
           Reset view
         </button>
       </div>
-      <div
-        className="plan-container"
-        ref={containerRef}
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault()
-          const payloadText = event.dataTransfer.getData('application/x-xeriscape-item')
-          const payload = payloadText ? (JSON.parse(payloadText) as PaletteDrop) : activeDrop
-          const position = normalizedPosition(event.clientX, event.clientY)
-          if (!payload || !position) return
-          addDroppedItem(payload, position.x, position.y)
-        }}
-      >
+      <div className="plan-container">
         <Stage
           ref={(node) => {
             stageRef.current = node
@@ -240,27 +238,27 @@ export function TopDownPlan({
             setStagePosition({ x: stage.x(), y: stage.y() })
           }}
           onClick={(event) => {
-            if (event.target === event.target.getStage()) {
-              const position = event.target.getStage()?.getPointerPosition()
-              if (!position) {
-                setSelection(null)
-                return
-              }
-              const x = (position.x - stagePosition.x) / zoom / PIXELS_PER_FOOT
-              const y = (position.y - stagePosition.y) / zoom / PIXELS_PER_FOOT
-              if (activeDrop) {
-                addDroppedItem(activeDrop, x, y)
-                return
-              }
-              if (activeRiverEdit) {
-                setDesign((draft) => {
-                  draft.dryRiverBed.points.push({
-                    x: draft.settings.snapToGrid ? roundToGrid(x, draft.siteDimensions.gridFeet / 2) : x,
-                    y: draft.settings.snapToGrid ? roundToGrid(y, draft.siteDimensions.gridFeet / 2) : y,
-                  })
+            const position = event.target.getStage()?.getPointerPosition()
+            if (!position) {
+              setSelection(null)
+              return
+            }
+            const x = (position.x - stagePosition.x) / zoom / PIXELS_PER_FOOT
+            const y = (position.y - stagePosition.y) / zoom / PIXELS_PER_FOOT
+            if (activeDrop) {
+              addDroppedItem(activeDrop, x, y)
+              return
+            }
+            if (activeRiverEdit) {
+              setDesign((draft) => {
+                draft.dryRiverBed.points.push({
+                  x: draft.settings.snapToGrid ? roundToGrid(x, draft.siteDimensions.gridFeet / 2) : x,
+                  y: draft.settings.snapToGrid ? roundToGrid(y, draft.siteDimensions.gridFeet / 2) : y,
                 })
-                return
-              }
+              })
+              return
+            }
+            if (event.target === event.target.getStage()) {
               setSelection(null)
             }
           }}
@@ -284,12 +282,112 @@ export function TopDownPlan({
             {renderZoneRect('mainBed', 'Main bed', design.siteDimensions.mainBed.x, design.siteDimensions.mainBed.y, design.siteDimensions.mainBed.width, design.siteDimensions.mainBed.depth)}
             {renderZoneRect('curbStrip', 'Curb strip', design.siteDimensions.curbStrip.x, design.siteDimensions.curbStrip.y, design.siteDimensions.curbStrip.width, design.siteDimensions.curbStrip.depth)}
 
-            <Rect x={feetToPixels(design.siteDimensions.driveway.x)} y={feetToPixels(design.siteDimensions.driveway.y)} width={feetToPixels(design.siteDimensions.driveway.width)} height={feetToPixels(design.siteDimensions.driveway.depth)} fill="#b7bec8" stroke="#6b7280" strokeWidth={1} />
-            <Rect x={feetToPixels(design.siteDimensions.house.x)} y={feetToPixels(design.siteDimensions.house.y)} width={feetToPixels(design.siteDimensions.house.width)} height={feetToPixels(design.siteDimensions.house.depth)} fill="#d8dde5" stroke="#64748b" strokeWidth={1.5} />
-            <Rect x={feetToPixels(design.siteDimensions.garage.x)} y={feetToPixels(design.siteDimensions.garage.y)} width={feetToPixels(design.siteDimensions.garage.width)} height={feetToPixels(design.siteDimensions.garage.depth)} fill="#c3cad4" stroke="#64748b" strokeWidth={1.5} />
-            <Rect x={feetToPixels(design.siteDimensions.porch.x)} y={feetToPixels(design.siteDimensions.porch.y)} width={feetToPixels(design.siteDimensions.porch.width)} height={feetToPixels(design.siteDimensions.porch.depth)} fill="#c6b398" stroke="#7c5a3f" strokeWidth={1.5} />
-            <Rect x={feetToPixels(design.siteDimensions.frontWalk.x)} y={feetToPixels(design.siteDimensions.frontWalk.y)} width={feetToPixels(design.siteDimensions.frontWalk.width)} height={feetToPixels(design.siteDimensions.frontWalk.depth)} fill="#d9d9d9" stroke="#6b7280" strokeWidth={1} />
-            <Rect x={feetToPixels(design.siteDimensions.sidewalk.x)} y={feetToPixels(design.siteDimensions.sidewalk.y)} width={feetToPixels(design.siteDimensions.sidewalk.width)} height={feetToPixels(design.siteDimensions.sidewalk.depth)} fill="#d7dce1" stroke="#64748b" strokeWidth={1} />
+            <Rect
+              x={feetToPixels(design.siteDimensions.driveway.x)}
+              y={feetToPixels(design.siteDimensions.driveway.y)}
+              width={feetToPixels(design.siteDimensions.driveway.width)}
+              height={feetToPixels(design.siteDimensions.driveway.depth)}
+              fill="#b7bec8"
+              stroke="#6b7280"
+              strokeWidth={1}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'driveway' })
+              }}
+            />
+            <Rect
+              x={feetToPixels(design.siteDimensions.house.x)}
+              y={feetToPixels(design.siteDimensions.house.y)}
+              width={feetToPixels(design.siteDimensions.house.width)}
+              height={feetToPixels(design.siteDimensions.house.depth)}
+              fill="#d8dde5"
+              stroke="#64748b"
+              strokeWidth={1.5}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'house' })
+              }}
+            />
+            <Rect
+              x={feetToPixels(design.siteDimensions.garage.x)}
+              y={feetToPixels(design.siteDimensions.garage.y)}
+              width={feetToPixels(design.siteDimensions.garage.width)}
+              height={feetToPixels(design.siteDimensions.garage.depth)}
+              fill="#c3cad4"
+              stroke="#64748b"
+              strokeWidth={1.5}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'garage' })
+              }}
+            />
+            <Rect
+              x={feetToPixels(design.siteDimensions.porch.x)}
+              y={feetToPixels(design.siteDimensions.porch.y)}
+              width={feetToPixels(design.siteDimensions.porch.width)}
+              height={feetToPixels(design.siteDimensions.porch.depth)}
+              fill="#c6b398"
+              stroke="#7c5a3f"
+              strokeWidth={1.5}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'porch' })
+              }}
+            />
+            <Rect
+              x={feetToPixels(design.siteDimensions.frontWalk.x)}
+              y={feetToPixels(design.siteDimensions.frontWalk.y)}
+              width={feetToPixels(design.siteDimensions.frontWalk.width)}
+              height={feetToPixels(design.siteDimensions.frontWalk.depth)}
+              fill="#d9d9d9"
+              stroke="#6b7280"
+              strokeWidth={1}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'frontWalk' })
+              }}
+            />
+            <Rect
+              x={feetToPixels(design.siteDimensions.sidewalk.x)}
+              y={feetToPixels(design.siteDimensions.sidewalk.y)}
+              width={feetToPixels(design.siteDimensions.sidewalk.width)}
+              height={feetToPixels(design.siteDimensions.sidewalk.depth)}
+              fill="#d7dce1"
+              stroke="#64748b"
+              strokeWidth={1}
+              onClick={() => {
+                if (activeDrop || activeRiverEdit) return
+                setSelection({ kind: 'siteRect', id: 'sidewalk' })
+              }}
+            />
+
+            {activeSiteRectKey && (
+              <Group>
+                <Rect
+                  x={feetToPixels(design.siteDimensions[activeSiteRectKey].x)}
+                  y={feetToPixels(design.siteDimensions[activeSiteRectKey].y)}
+                  width={feetToPixels(design.siteDimensions[activeSiteRectKey].width)}
+                  height={feetToPixels(design.siteDimensions[activeSiteRectKey].depth)}
+                  fill="rgba(37, 99, 235, 0.08)"
+                  stroke="#2563eb"
+                  strokeWidth={3}
+                  dash={[10, 6]}
+                  draggable={!design.settings.panMode}
+                  onClick={() => setSelection({ kind: 'siteRect', id: activeSiteRectKey })}
+                  onDragStart={() => setSelection({ kind: 'siteRect', id: activeSiteRectKey })}
+                  onDragMove={(event) => applySiteRectPosition(activeSiteRectKey, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                  onDragEnd={() => commitDrag()}
+                />
+                <Text
+                  x={feetToPixels(design.siteDimensions[activeSiteRectKey].x) + 8}
+                  y={Math.max(6, feetToPixels(design.siteDimensions[activeSiteRectKey].y) - 18)}
+                  text={`Editing ${SITE_RECT_LABELS[activeSiteRectKey]}`}
+                  fontSize={12}
+                  fill="#1d4ed8"
+                  fontStyle="bold"
+                />
+              </Group>
+            )}
 
             <Text x={feetToPixels(1)} y={feetToPixels(1)} text="House / North" fontSize={14} fontStyle="bold" fill="#1e293b" />
             <Text x={feetToPixels(1)} y={siteHeight - 20} text="Street / South" fontSize={14} fontStyle="bold" fill="#1e293b" />
@@ -311,7 +409,14 @@ export function TopDownPlan({
                   stroke="#2563eb"
                   strokeWidth={2}
                   draggable={activeRiverEdit}
-                  onClick={() => setSelection({ kind: 'riverPoint', id: point.id })}
+                  onClick={(event) => {
+                    if (activeDrop) return
+                    if (activeRiverEdit) {
+                      event.cancelBubble = true
+                      return
+                    }
+                    setSelection({ kind: 'riverPoint', id: point.id })
+                  }}
                   onDragStart={() => setSelection({ kind: 'riverPoint', id: point.id })}
                   onDragMove={(event) => applyPosition({ kind: 'riverPoint', id: point.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                   onDragEnd={() => commitDrag()}
@@ -339,7 +444,10 @@ export function TopDownPlan({
                   stroke={selection?.kind === 'existingPlant' && selection.id === key ? '#0f172a' : '#475569'}
                   strokeWidth={2}
                   draggable={!existingPlant.locked}
-                  onClick={() => setSelection({ kind: 'existingPlant', id: key as ExistingPlantKey })}
+                  onClick={() => {
+                    if (activeDrop || activeRiverEdit) return
+                    setSelection({ kind: 'existingPlant', id: key as ExistingPlantKey })
+                  }}
                   onDragStart={() => setSelection({ kind: 'existingPlant', id: key as ExistingPlantKey })}
                   onDragMove={(event) => applyPosition({ kind: 'existingPlant', id: key as ExistingPlantKey }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                   onDragEnd={() => commitDrag()}
@@ -361,7 +469,10 @@ export function TopDownPlan({
                     stroke={selection?.kind === 'utility' && selection.id === cover.id ? '#0f172a' : '#7c2d12'}
                     strokeWidth={2}
                     draggable={!cover.locked}
-                    onClick={() => setSelection({ kind: 'utility', id: cover.id })}
+                    onClick={() => {
+                      if (activeDrop || activeRiverEdit) return
+                      setSelection({ kind: 'utility', id: cover.id })
+                    }}
                     onDragStart={() => setSelection({ kind: 'utility', id: cover.id })}
                     onDragMove={(event) => applyPosition({ kind: 'utility', id: cover.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}
@@ -377,7 +488,10 @@ export function TopDownPlan({
                     strokeWidth={2}
                     cornerRadius={4}
                     draggable={!cover.locked}
-                    onClick={() => setSelection({ kind: 'utility', id: cover.id })}
+                    onClick={() => {
+                      if (activeDrop || activeRiverEdit) return
+                      setSelection({ kind: 'utility', id: cover.id })
+                    }}
                     onDragStart={() => setSelection({ kind: 'utility', id: cover.id })}
                     onDragMove={(event) => applyPosition({ kind: 'utility', id: cover.id }, (event.target.x() + feetToPixels(cover.width / 2)) / PIXELS_PER_FOOT, (event.target.y() + feetToPixels(cover.height / 2)) / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}
@@ -394,7 +508,10 @@ export function TopDownPlan({
                 y={feetToPixels(boulder.y)}
                 rotation={boulder.rotation}
                 draggable={!boulder.locked}
-                onClick={() => setSelection({ kind: 'boulder', id: boulder.id })}
+                onClick={() => {
+                  if (activeDrop || activeRiverEdit) return
+                  setSelection({ kind: 'boulder', id: boulder.id })
+                }}
                 onDragStart={() => setSelection({ kind: 'boulder', id: boulder.id })}
                 onDragMove={(event) => applyPosition({ kind: 'boulder', id: boulder.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                 onDragEnd={() => commitDrag()}
@@ -436,7 +553,10 @@ export function TopDownPlan({
                     stroke={selection?.kind === 'plant' && selection.id === plant.id ? '#0f172a' : '#334155'}
                     strokeWidth={2}
                     draggable={!plant.locked}
-                    onClick={() => setSelection({ kind: 'plant', id: plant.id })}
+                    onClick={() => {
+                      if (activeDrop || activeRiverEdit) return
+                      setSelection({ kind: 'plant', id: plant.id })
+                    }}
                    onDragStart={() => setSelection({ kind: 'plant', id: plant.id })}
                    onDragMove={(event) => applyPosition({ kind: 'plant', id: plant.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}

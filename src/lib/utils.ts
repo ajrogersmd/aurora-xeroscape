@@ -1,4 +1,4 @@
-import { MATERIAL_LABELS, PIXELS_PER_FOOT, PLANT_PALETTE } from '../data'
+import { MATERIAL_LABELS, PIXELS_PER_FOOT, PLANT_PALETTE, SITE_RECT_LABELS } from '../data'
 import type {
   DesignState,
   ExistingPlantKey,
@@ -59,6 +59,7 @@ export const getSelectionSummary = (design: DesignState, selection: Selection) =
   }
   if (selection.kind === 'boulder') return 'Boulder'
   if (selection.kind === 'utility') return 'Utility cover'
+  if (selection.kind === 'siteRect') return SITE_RECT_LABELS[selection.id]
   if (selection.kind === 'riverPoint') return 'Dry river control point'
   return design.siteDimensions.existingPlants[selection.id].commonName
 }

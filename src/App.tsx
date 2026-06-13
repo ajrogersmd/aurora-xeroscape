@@ -3,9 +3,9 @@ import type Konva from 'konva'
 import './App.css'
 import { TopDownPlan } from './components/TopDownPlan'
 import { StreetView } from './components/StreetView'
-import { DEFAULT_DESIGN, MATERIAL_LABELS, PLANT_PALETTE, PRESET_KEY, STORAGE_KEY } from './data'
+import { DEFAULT_DESIGN, MATERIAL_LABELS, PLANT_PALETTE, PRESET_KEY, SITE_RECT_LABELS, STORAGE_KEY } from './data'
 import { cloneDesign, createPromptText, getSelectionSummary, normalizeDesign, plantDefinitionById, validateDesign } from './lib/utils'
-import type { Boulder, DesignState, Grade, MaterialType, Selection, SiteDimensions } from './types'
+import type { Boulder, DesignState, Grade, MaterialType, Selection, SiteDimensions, SiteRectKey } from './types'
 
 type HistoryState = {
   past: DesignState[]
@@ -28,20 +28,12 @@ type SavedPreset = {
   design: DesignState
 }
 
-type SiteRectKey = 'house' | 'garage' | 'porch' | 'driveway' | 'frontWalk' | 'mainBed' | 'leftSideBed' | 'sidewalk' | 'curbStrip'
 type SiteRectField = 'x' | 'y' | 'width' | 'depth'
 
-const SITE_RECT_SECTIONS: Array<{ key: SiteRectKey; label: string }> = [
-  { key: 'house', label: 'House footprint' },
-  { key: 'garage', label: 'Garage' },
-  { key: 'porch', label: 'Porch' },
-  { key: 'driveway', label: 'Driveway' },
-  { key: 'frontWalk', label: 'Front walk' },
-  { key: 'mainBed', label: 'Main bed' },
-  { key: 'leftSideBed', label: 'Left side bed' },
-  { key: 'sidewalk', label: 'Sidewalk' },
-  { key: 'curbStrip', label: 'Curb strip' },
-]
+const SITE_RECT_SECTIONS: Array<{ key: SiteRectKey; label: string }> = Object.entries(SITE_RECT_LABELS).map(([key, label]) => ({
+  key: key as SiteRectKey,
+  label,
+}))
 
 const loadInitial = () => {
   const raw = localStorage.getItem(STORAGE_KEY)
@@ -112,6 +104,7 @@ function App() {
   const selectedBoulder = selection?.kind === 'boulder' ? design.boulders.find((item) => item.id === selection.id) : null
   const selectedUtility = selection?.kind === 'utility' ? design.utilityCovers.find((item) => item.id === selection.id) : null
   const selectedExistingPlant = selection?.kind === 'existingPlant' ? design.siteDimensions.existingPlants[selection.id] : null
+  const selectedSiteRect = selection?.kind === 'siteRect' ? design.siteDimensions[selection.id] : null
   const selectedRiverPoint = selection?.kind === 'riverPoint' ? design.dryRiverBed.points[Number(selection.id.split('-')[1])] : null
 
   const copyPrompt = async (mode: 'street' | 'topdown') => {
@@ -195,7 +188,7 @@ function App() {
     event.target.value = ''
   }
 
-  const updateNumericField = (path: 'x' | 'y' | 'rotation' | 'matureSpread' | 'sizeFt' | 'width' | 'height' | 'canopyRadius', value: number) => {
+  const updateNumericField = (path: 'x' | 'y' | 'rotation' | 'matureSpread' | 'sizeFt' | 'width' | 'height' | 'depth' | 'canopyRadius', value: number) => {
     if (selectedPlant) {
       updateDesign((draft) => {
         const plant = draft.placedPlants.find((item) => item.id === selectedPlant.id)
@@ -236,6 +229,10 @@ function App() {
           ;(tree[path] as number) = value
         }
       })
+      return
+    }
+    if (selectedSiteRect && selection?.kind === 'siteRect') {
+      updateSiteRect(selection.id, path as SiteRectField, value)
       return
     }
     if (selectedRiverPoint && selection?.kind === 'riverPoint') {
@@ -395,17 +392,16 @@ function App() {
 
           <section className="card">
             <h2>Palette</h2>
-            <p className="muted">Drag plants into the plan. Click the other tools, then click the plan to place them.</p>
+            <p className="muted">Click any plant or tool here, then click the plan to place it.</p>
             <div className="palette-grid">
               {PLANT_PALETTE.map((plant) => (
                 <button
                   key={plant.id}
                   type="button"
-                  className="palette-item"
-                  draggable
-                  onDragStart={(event) => {
-                    const payload = JSON.stringify({ kind: 'plant', plantId: plant.id })
-                    event.dataTransfer.setData('application/x-xeriscape-item', payload)
+                  className={`palette-item${activeDrop?.kind === 'plant' && activeDrop.plantId === plant.id ? ' active' : ''}`}
+                  onClick={() => {
+                    setSelection(null)
+                    setActiveRiverEdit(false)
                     setActiveDrop({ kind: 'plant', plantId: plant.id })
                   }}
                 >
@@ -418,10 +414,50 @@ function App() {
               ))}
             </div>
             <div className="button-grid compact">
-              <button type="button" onClick={() => setActiveDrop({ kind: 'boulder' })}>Place boulder</button>
-              <button type="button" onClick={() => setActiveDrop({ kind: 'utility', shape: 'circle' })}>Place circular utility cover</button>
-              <button type="button" onClick={() => setActiveDrop({ kind: 'utility', shape: 'rectangle' })}>Place rectangular utility cover</button>
-              <button type="button" onClick={() => setActiveRiverEdit((current) => !current)} className={activeRiverEdit ? 'active' : ''}>{activeRiverEdit ? 'Stop river editing' : 'Edit dry river bed'}</button>
+              <button
+                type="button"
+                className={activeDrop?.kind === 'boulder' ? 'active' : ''}
+                onClick={() => {
+                  setSelection(null)
+                  setActiveRiverEdit(false)
+                  setActiveDrop({ kind: 'boulder' })
+                }}
+              >
+                Place boulder
+              </button>
+              <button
+                type="button"
+                className={activeDrop?.kind === 'utility' && activeDrop.shape === 'circle' ? 'active' : ''}
+                onClick={() => {
+                  setSelection(null)
+                  setActiveRiverEdit(false)
+                  setActiveDrop({ kind: 'utility', shape: 'circle' })
+                }}
+              >
+                Place circular utility cover
+              </button>
+              <button
+                type="button"
+                className={activeDrop?.kind === 'utility' && activeDrop.shape === 'rectangle' ? 'active' : ''}
+                onClick={() => {
+                  setSelection(null)
+                  setActiveRiverEdit(false)
+                  setActiveDrop({ kind: 'utility', shape: 'rectangle' })
+                }}
+              >
+                Place rectangular utility cover
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelection(null)
+                  setActiveDrop(null)
+                  setActiveRiverEdit((current) => !current)
+                }}
+                className={activeRiverEdit ? 'active' : ''}
+              >
+                {activeRiverEdit ? 'Stop river editing' : 'Edit dry river bed'}
+              </button>
             </div>
           </section>
 
@@ -460,7 +496,7 @@ function App() {
 
           <section className="card site-model-panel">
             <h2>Yard layout / site model</h2>
-            <p className="muted">Adjust the estimated yard geometry that drives the plan and prompt outputs.</p>
+            <p className="muted">Adjust the estimated yard geometry that drives the plan and prompt outputs. Use “Select in plan” to highlight a base footprint, then drag it on the canvas or edit the values here.</p>
             <div className="site-model-grid">
               <label>
                 Frontage (ft)
@@ -488,7 +524,11 @@ function App() {
               {SITE_RECT_SECTIONS.map((section) => {
                 const rect = design.siteDimensions[section.key]
                 return (
-                  <details key={section.key} className="site-model-section" open={section.key === 'house' || section.key === 'mainBed'}>
+                  <details
+                    key={section.key}
+                    className={`site-model-section${selection?.kind === 'siteRect' && selection.id === section.key ? ' active' : ''}`}
+                    open={section.key === 'house' || section.key === 'mainBed' || (selection?.kind === 'siteRect' && selection.id === section.key)}
+                  >
                     <summary>{section.label}</summary>
                     <div className="site-model-grid compact">
                       <label>
@@ -508,6 +548,15 @@ function App() {
                         <input type="number" min={0} step={0.5} value={rect.depth} onChange={(event) => updateSiteRect(section.key, 'depth', Number(event.target.value))} />
                       </label>
                     </div>
+                    <div className="button-grid compact">
+                      <button
+                        type="button"
+                        className={selection?.kind === 'siteRect' && selection.id === section.key ? 'active' : ''}
+                        onClick={() => setSelection({ kind: 'siteRect', id: section.key })}
+                      >
+                        {selection?.kind === 'siteRect' && selection.id === section.key ? 'Selected in plan' : 'Select in plan'}
+                      </button>
+                    </div>
                   </details>
                 )
               })}
@@ -517,7 +566,7 @@ function App() {
           <section className="card">
             <h2>Inspector</h2>
             <p className="muted">{getSelectionSummary(design, selection)}</p>
-            {!selection && <p>Select a plant, boulder, utility cover, tree, or river point to edit it.</p>}
+            {!selection && <p>Select a plant, boulder, utility cover, tree, site footprint, or river point to edit it.</p>}
             {selectedPlant && (
               <div className="inspector-fields">
                 <p><strong>{plantDefinitionById(selectedPlant.plantId)?.commonName}</strong></p>
@@ -554,6 +603,16 @@ function App() {
                 <label>Canopy radius (ft)<input type="number" min={1} value={selectedExistingPlant.canopyRadius} step={0.5} onChange={(event) => updateNumericField('canopyRadius', Number(event.target.value))} /></label>
               </div>
             )}
+            {selectedSiteRect && selection?.kind === 'siteRect' && (
+              <div className="inspector-fields">
+                <p><strong>{SITE_RECT_LABELS[selection.id]}</strong></p>
+                <label>X (ft)<input type="number" value={selectedSiteRect.x} step={0.5} onChange={(event) => updateNumericField('x', Number(event.target.value))} /></label>
+                <label>Y (ft)<input type="number" value={selectedSiteRect.y} step={0.5} onChange={(event) => updateNumericField('y', Number(event.target.value))} /></label>
+                <label>Width (ft)<input type="number" min={0} value={selectedSiteRect.width} step={0.5} onChange={(event) => updateNumericField('width', Number(event.target.value))} /></label>
+                <label>Depth (ft)<input type="number" min={0} value={selectedSiteRect.depth} step={0.5} onChange={(event) => updateNumericField('depth', Number(event.target.value))} /></label>
+                <p className="muted">Drag the highlighted footprint in the plan for direct base-scene editing.</p>
+              </div>
+            )}
             {selectedRiverPoint && (
               <div className="inspector-fields">
                 <label>X (ft)<input type="number" value={selectedRiverPoint.x} step={0.5} onChange={(event) => updateNumericField('x', Number(event.target.value))} /></label>
@@ -562,9 +621,9 @@ function App() {
               </div>
             )}
             <div className="button-grid compact">
-              <button type="button" onClick={toggleLock} disabled={!selection || selection.kind === 'riverPoint'}>{(selectedPlant?.locked || selectedBoulder?.locked || selectedUtility?.locked || selectedExistingPlant?.locked) ? 'Unlock' : 'Lock'}</button>
+              <button type="button" onClick={toggleLock} disabled={!selection || selection.kind === 'riverPoint' || selection.kind === 'siteRect'}>{(selectedPlant?.locked || selectedBoulder?.locked || selectedUtility?.locked || selectedExistingPlant?.locked) ? 'Unlock' : 'Lock'}</button>
               <button type="button" onClick={duplicateSelection} disabled={!selectedPlant}>Duplicate</button>
-              <button type="button" onClick={deleteSelection} disabled={!selection || selection.kind === 'existingPlant'}>Delete</button>
+              <button type="button" onClick={deleteSelection} disabled={!selection || selection.kind === 'existingPlant' || selection.kind === 'siteRect'}>Delete</button>
             </div>
           </section>
 
@@ -602,9 +661,10 @@ function App() {
               <article className="card">
                 <h2>How to use the planner</h2>
                 <ol>
-                  <li>Drag plants from the palette into the top-down plan.</li>
+                  <li>Click a plant or placement tool in the palette, then click the top-down plan to place it.</li>
                   <li>Click any zone to repaint its surface material.</li>
                   <li>Use “Edit dry river bed” and click the plan to add path points.</li>
+                  <li>Use “Select in plan” in the yard layout panel to highlight and drag the base scene footprints.</li>
                   <li>Select items to adjust position, spread, rotation, labels, and lock state.</li>
                   <li>Export PNG or JSON, or copy a rendering prompt for ChatGPT.</li>
                 </ol>

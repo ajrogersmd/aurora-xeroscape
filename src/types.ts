@@ -11,6 +11,7 @@ export type MaterialType =
 
 export type ExistingPlantKey = 'ornamentalCherry' | 'maple' | 'blueSpruce'
 export type SurfaceZoneKey = 'mainBed' | 'curbStrip' | 'leftSideBed'
+export type SiteRectKey = 'house' | 'garage' | 'porch' | 'driveway' | 'frontWalk' | 'mainBed' | 'leftSideBed' | 'sidewalk' | 'curbStrip'
 
 export type PlantDefinition = {
   id: string
@@ -181,5 +182,6 @@ export type Selection =
   | { kind: 'boulder'; id: string }
   | { kind: 'utility'; id: string }
   | { kind: 'existingPlant'; id: ExistingPlantKey }
+  | { kind: 'siteRect'; id: SiteRectKey }
   | { kind: 'riverPoint'; id: string }
   | null

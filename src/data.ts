@@ -1,4 +1,4 @@
-import type { Boulder, DesignState, PlantDefinition, SiteDimensions } from './types'
+import type { Boulder, DesignState, PlantDefinition, SiteDimensions, SiteRectKey } from './types'
 
 const now = () => new Date().toISOString()
 
@@ -16,6 +16,18 @@ export const MATERIAL_LABELS = {
   'mixed-tan-gray-cobble': 'Mixed tan/gray cobble',
   'large-rounded-cobble': 'Large rounded cobble',
 } as const
+
+export const SITE_RECT_LABELS: Record<SiteRectKey, string> = {
+  house: 'House footprint',
+  garage: 'Garage',
+  porch: 'Porch',
+  driveway: 'Driveway',
+  frontWalk: 'Front walk',
+  mainBed: 'Main bed',
+  leftSideBed: 'Left side bed',
+  sidewalk: 'Sidewalk',
+  curbStrip: 'Curb strip',
+}
 
 export const PLANT_PALETTE: PlantDefinition[] = [
   {
