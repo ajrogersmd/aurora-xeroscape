@@ -4,8 +4,8 @@ import './App.css'
 import { TopDownPlan } from './components/TopDownPlan'
 import { StreetView } from './components/StreetView'
 import { DEFAULT_DESIGN, MATERIAL_LABELS, PLANT_PALETTE, PRESET_KEY, STORAGE_KEY } from './data'
-import { cloneDesign, createPromptText, getSelectionSummary, plantDefinitionById, validateDesign } from './lib/utils'
-import type { Boulder, DesignState, MaterialType, Selection } from './types'
+import { cloneDesign, createPromptText, getSelectionSummary, normalizeDesign, plantDefinitionById, validateDesign } from './lib/utils'
+import type { Boulder, DesignState, Grade, MaterialType, Selection, SiteDimensions } from './types'
 
 type HistoryState = {
   past: DesignState[]
@@ -28,12 +28,27 @@ type SavedPreset = {
   design: DesignState
 }
 
+type SiteRectKey = 'house' | 'garage' | 'porch' | 'driveway' | 'frontWalk' | 'mainBed' | 'leftSideBed' | 'sidewalk' | 'curbStrip'
+type SiteRectField = 'x' | 'y' | 'width' | 'depth'
+
+const SITE_RECT_SECTIONS: Array<{ key: SiteRectKey; label: string }> = [
+  { key: 'house', label: 'House footprint' },
+  { key: 'garage', label: 'Garage' },
+  { key: 'porch', label: 'Porch' },
+  { key: 'driveway', label: 'Driveway' },
+  { key: 'frontWalk', label: 'Front walk' },
+  { key: 'mainBed', label: 'Main bed' },
+  { key: 'leftSideBed', label: 'Left side bed' },
+  { key: 'sidewalk', label: 'Sidewalk' },
+  { key: 'curbStrip', label: 'Curb strip' },
+]
+
 const loadInitial = () => {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return cloneDesign(DEFAULT_DESIGN)
   try {
     const parsed = JSON.parse(raw) as DesignState
-    return parsed
+    return normalizeDesign(parsed)
   } catch {
     return cloneDesign(DEFAULT_DESIGN)
   }
@@ -137,7 +152,7 @@ function App() {
   const loadPreset = (presetId: string) => {
     const preset = savedPresets.find((entry) => entry.id === presetId)
     if (!preset) return
-    setHistory((current) => ({ past: [...current.past, current.present], present: cloneDesign(preset.design), future: [] }))
+    setHistory((current) => ({ past: [...current.past, current.present], present: normalizeDesign(preset.design), future: [] }))
     setSelection(null)
     setStatusMessage(`Loaded preset “${preset.name}”.`)
   }
@@ -150,7 +165,7 @@ function App() {
 
   const loadExample = async () => {
     const response = await fetch(`${import.meta.env.BASE_URL}examples/default-design.json`)
-    const example = (await response.json()) as DesignState
+    const example = normalizeDesign((await response.json()) as DesignState)
     setHistory((current) => ({ past: [...current.past, current.present], present: example, future: [] }))
     setStatusMessage('Loaded the bundled example design.')
   }
@@ -159,7 +174,7 @@ function App() {
     const file = event.target.files?.[0]
     if (!file) return
     const text = await file.text()
-    const imported = JSON.parse(text) as DesignState
+    const imported = normalizeDesign(JSON.parse(text) as DesignState)
     setHistory((current) => ({ past: [...current.past, current.present], present: imported, future: [] }))
     setSelection(null)
     setStatusMessage(`Imported ${file.name}.`)
@@ -233,6 +248,33 @@ function App() {
         }
       })
     }
+  }
+
+  const updateSiteMetric = (field: 'totalFrontage' | 'totalDepth' | 'gridFeet', value: number) => {
+    updateDesign((draft) => {
+      if (field === 'gridFeet') {
+        draft.siteDimensions.gridFeet = Math.max(0.5, Number.isFinite(value) ? value : 0.5)
+        return
+      }
+      const nextValue = Math.max(1, Number.isFinite(value) ? value : 1)
+      draft.siteDimensions[field] = nextValue
+      if (field === 'totalFrontage') {
+        draft.siteDimensions.rightBoundaryX = nextValue
+      }
+    })
+  }
+
+  const updateSiteRect = (section: SiteRectKey, field: SiteRectField, value: number) => {
+    updateDesign((draft) => {
+      const rect = draft.siteDimensions[section] as SiteDimensions['house']
+      rect[field] = Math.max(0, Number.isFinite(value) ? value : 0)
+    })
+  }
+
+  const updateSlopeGrade = (grade: Grade) => {
+    updateDesign((draft) => {
+      draft.siteDimensions.slope.grade = grade
+    })
   }
 
   const deleteSelection = () => {
@@ -416,6 +458,62 @@ function App() {
             </label>
           </section>
 
+          <section className="card site-model-panel">
+            <h2>Yard layout / site model</h2>
+            <p className="muted">Adjust the estimated yard geometry that drives the plan and prompt outputs.</p>
+            <div className="site-model-grid">
+              <label>
+                Frontage (ft)
+                <input type="number" min={1} step={0.5} value={design.siteDimensions.totalFrontage} onChange={(event) => updateSiteMetric('totalFrontage', Number(event.target.value))} />
+              </label>
+              <label>
+                Depth (ft)
+                <input type="number" min={1} step={0.5} value={design.siteDimensions.totalDepth} onChange={(event) => updateSiteMetric('totalDepth', Number(event.target.value))} />
+              </label>
+              <label>
+                Grid spacing (ft)
+                <input type="number" min={0.5} step={0.5} value={design.siteDimensions.gridFeet} onChange={(event) => updateSiteMetric('gridFeet', Number(event.target.value))} />
+              </label>
+              <label>
+                Slope grade
+                <select value={design.siteDimensions.slope.grade} onChange={(event) => updateSlopeGrade(event.target.value as Grade)}>
+                  <option value="flat">Flat</option>
+                  <option value="slight">Slight</option>
+                  <option value="moderate">Moderate</option>
+                  <option value="steep">Steep</option>
+                </select>
+              </label>
+            </div>
+            <div className="site-model-sections">
+              {SITE_RECT_SECTIONS.map((section) => {
+                const rect = design.siteDimensions[section.key]
+                return (
+                  <details key={section.key} className="site-model-section" open={section.key === 'house' || section.key === 'mainBed'}>
+                    <summary>{section.label}</summary>
+                    <div className="site-model-grid compact">
+                      <label>
+                        X (ft)
+                        <input type="number" step={0.5} value={rect.x} onChange={(event) => updateSiteRect(section.key, 'x', Number(event.target.value))} />
+                      </label>
+                      <label>
+                        Y (ft)
+                        <input type="number" step={0.5} value={rect.y} onChange={(event) => updateSiteRect(section.key, 'y', Number(event.target.value))} />
+                      </label>
+                      <label>
+                        Width (ft)
+                        <input type="number" min={0} step={0.5} value={rect.width} onChange={(event) => updateSiteRect(section.key, 'width', Number(event.target.value))} />
+                      </label>
+                      <label>
+                        Depth (ft)
+                        <input type="number" min={0} step={0.5} value={rect.depth} onChange={(event) => updateSiteRect(section.key, 'depth', Number(event.target.value))} />
+                      </label>
+                    </div>
+                  </details>
+                )
+              })}
+            </div>
+          </section>
+
           <section className="card">
             <h2>Inspector</h2>
             <p className="muted">{getSelectionSummary(design, selection)}</p>
@@ -522,7 +620,7 @@ function App() {
                   <li>66 ft frontage by 54 ft depth</li>
                   <li>Driveway on the left, main planting bed on the right</li>
                   <li>Sidewalk near the street and porch at the north edge</li>
-                  <li>Existing ornamental cherry, maple, and blue spruce locked by default</li>
+                  <li>Existing ornamental cherry, maple, and blue spruce start unlocked so you can reposition them</li>
                 </ul>
               </article>
             </section>

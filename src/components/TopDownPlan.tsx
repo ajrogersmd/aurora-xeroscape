@@ -33,6 +33,8 @@ type Props = {
   onExportReady: (stage: Konva.Stage | null) => void
 }
 
+type ActiveSelection = Exclude<Selection, null>
+
 
 export function TopDownPlan({
   design,
@@ -69,41 +71,43 @@ export function TopDownPlan({
     }
   }
 
-  const applyPosition = (x: number, y: number) => {
-    if (!selection) return
+  const applyPosition = (nextSelection: ActiveSelection, x: number, y: number) => {
+    if (selection?.kind !== nextSelection.kind || selection.id !== nextSelection.id) {
+      setSelection(nextSelection)
+    }
     setDesign((draft) => {
       const nextX = draft.settings.snapToGrid ? roundToGrid(x, draft.siteDimensions.gridFeet / 2) : x
       const nextY = draft.settings.snapToGrid ? roundToGrid(y, draft.siteDimensions.gridFeet / 2) : y
-      if (selection.kind === 'plant') {
-        const plant = draft.placedPlants.find((item) => item.id === selection.id)
+      if (nextSelection.kind === 'plant') {
+        const plant = draft.placedPlants.find((item) => item.id === nextSelection.id)
         if (plant && !plant.locked) {
           plant.x = nextX
           plant.y = nextY
         }
       }
-      if (selection.kind === 'boulder') {
-        const boulder = draft.boulders.find((item) => item.id === selection.id)
+      if (nextSelection.kind === 'boulder') {
+        const boulder = draft.boulders.find((item) => item.id === nextSelection.id)
         if (boulder && !boulder.locked) {
           boulder.x = nextX
           boulder.y = nextY
         }
       }
-      if (selection.kind === 'utility') {
-        const cover = draft.utilityCovers.find((item) => item.id === selection.id)
+      if (nextSelection.kind === 'utility') {
+        const cover = draft.utilityCovers.find((item) => item.id === nextSelection.id)
         if (cover && !cover.locked) {
           cover.x = nextX
           cover.y = nextY
         }
       }
-      if (selection.kind === 'existingPlant') {
-        const plant = draft.siteDimensions.existingPlants[selection.id]
+      if (nextSelection.kind === 'existingPlant') {
+        const plant = draft.siteDimensions.existingPlants[nextSelection.id]
         if (!plant.locked) {
           plant.x = nextX
           plant.y = nextY
         }
       }
-      if (selection.kind === 'riverPoint') {
-        const riverPoint = riverPointMap.find((item) => item.id === selection.id)
+      if (nextSelection.kind === 'riverPoint') {
+        const riverPoint = riverPointMap.find((item) => item.id === nextSelection.id)
         if (riverPoint) {
           draft.dryRiverBed.points[riverPoint.index] = { x: nextX, y: nextY }
         }
@@ -230,7 +234,11 @@ export function TopDownPlan({
           x={stagePosition.x}
           y={stagePosition.y}
           draggable={design.settings.panMode}
-          onDragEnd={(event) => setStagePosition({ x: event.target.x(), y: event.target.y() })}
+          onDragEnd={(event) => {
+            const stage = event.target.getStage()
+            if (!stage || event.target !== stage) return
+            setStagePosition({ x: stage.x(), y: stage.y() })
+          }}
           onClick={(event) => {
             if (event.target === event.target.getStage()) {
               const position = event.target.getStage()?.getPointerPosition()
@@ -304,7 +312,8 @@ export function TopDownPlan({
                   strokeWidth={2}
                   draggable={activeRiverEdit}
                   onClick={() => setSelection({ kind: 'riverPoint', id: point.id })}
-                  onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                  onDragStart={() => setSelection({ kind: 'riverPoint', id: point.id })}
+                  onDragMove={(event) => applyPosition({ kind: 'riverPoint', id: point.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                   onDragEnd={() => commitDrag()}
                 />
               )
@@ -331,7 +340,8 @@ export function TopDownPlan({
                   strokeWidth={2}
                   draggable={!existingPlant.locked}
                   onClick={() => setSelection({ kind: 'existingPlant', id: key as ExistingPlantKey })}
-                  onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                  onDragStart={() => setSelection({ kind: 'existingPlant', id: key as ExistingPlantKey })}
+                  onDragMove={(event) => applyPosition({ kind: 'existingPlant', id: key as ExistingPlantKey }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                   onDragEnd={() => commitDrag()}
                 />
                 {design.settings.showLabels && (
@@ -352,7 +362,8 @@ export function TopDownPlan({
                     strokeWidth={2}
                     draggable={!cover.locked}
                     onClick={() => setSelection({ kind: 'utility', id: cover.id })}
-                    onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                    onDragStart={() => setSelection({ kind: 'utility', id: cover.id })}
+                    onDragMove={(event) => applyPosition({ kind: 'utility', id: cover.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}
                   />
                 ) : (
@@ -367,7 +378,8 @@ export function TopDownPlan({
                     cornerRadius={4}
                     draggable={!cover.locked}
                     onClick={() => setSelection({ kind: 'utility', id: cover.id })}
-                    onDragMove={(event) => applyPosition((event.target.x() + feetToPixels(cover.width / 2)) / PIXELS_PER_FOOT, (event.target.y() + feetToPixels(cover.height / 2)) / PIXELS_PER_FOOT)}
+                    onDragStart={() => setSelection({ kind: 'utility', id: cover.id })}
+                    onDragMove={(event) => applyPosition({ kind: 'utility', id: cover.id }, (event.target.x() + feetToPixels(cover.width / 2)) / PIXELS_PER_FOOT, (event.target.y() + feetToPixels(cover.height / 2)) / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}
                   />
                 )}
@@ -383,7 +395,8 @@ export function TopDownPlan({
                 rotation={boulder.rotation}
                 draggable={!boulder.locked}
                 onClick={() => setSelection({ kind: 'boulder', id: boulder.id })}
-                onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                onDragStart={() => setSelection({ kind: 'boulder', id: boulder.id })}
+                onDragMove={(event) => applyPosition({ kind: 'boulder', id: boulder.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                 onDragEnd={() => commitDrag()}
               >
                 <Line
@@ -424,7 +437,8 @@ export function TopDownPlan({
                     strokeWidth={2}
                     draggable={!plant.locked}
                     onClick={() => setSelection({ kind: 'plant', id: plant.id })}
-                    onDragMove={(event) => applyPosition(event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
+                   onDragStart={() => setSelection({ kind: 'plant', id: plant.id })}
+                   onDragMove={(event) => applyPosition({ kind: 'plant', id: plant.id }, event.target.x() / PIXELS_PER_FOOT, event.target.y() / PIXELS_PER_FOOT)}
                     onDragEnd={() => commitDrag()}
                   />
                   <Text x={feetToPixels(plant.x) - 5} y={feetToPixels(plant.y) - 7} text={definition.icon} fontSize={18} fill="#0f172a" />

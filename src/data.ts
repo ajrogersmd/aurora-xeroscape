@@ -181,7 +181,7 @@ export const DEFAULT_SITE_DIMENSIONS: SiteDimensions = {
       x: 8,
       y: 24,
       canopyRadius: 6,
-      locked: true,
+      locked: false,
       commonName: 'Existing ornamental cherry',
       silhouette: 'ornamental cherry canopy',
       color: '#d8a6b6',
@@ -190,7 +190,7 @@ export const DEFAULT_SITE_DIMENSIONS: SiteDimensions = {
       x: 53,
       y: 46,
       canopyRadius: 7,
-      locked: true,
+      locked: false,
       commonName: 'Existing maple',
       silhouette: 'existing maple canopy',
       color: '#8cb36a',
@@ -199,7 +199,7 @@ export const DEFAULT_SITE_DIMENSIONS: SiteDimensions = {
       x: 58,
       y: 14,
       canopyRadius: 6,
-      locked: true,
+      locked: false,
       commonName: 'Existing blue spruce',
       silhouette: 'existing blue spruce',
       color: '#5d7f93',
@@ -231,7 +231,7 @@ const makeBoulder = (id: string, x: number, y: number, sizeFt: 2 | 3 | 4, seed: 
 })
 
 export const DEFAULT_DESIGN: DesignState = {
-  version: 1,
+  version: 2,
   name: 'Default Colorado xeriscape concept',
   updatedAt: now(),
   siteDimensions: DEFAULT_SITE_DIMENSIONS,

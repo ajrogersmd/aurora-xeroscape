@@ -15,6 +15,19 @@ export const cloneDesign = <T,>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+export const normalizeDesign = (design: DesignState) => {
+  const normalized = cloneDesign(design)
+  const originalVersion = normalized.version ?? 0
+  normalized.siteDimensions.rightBoundaryX = normalized.siteDimensions.totalFrontage
+  if (originalVersion < 2) {
+    Object.values(normalized.siteDimensions.existingPlants).forEach((plant) => {
+      plant.locked = false
+    })
+  }
+  normalized.version = Math.max(originalVersion, 2)
+  return normalized
+}
+
 export const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value))
 export const roundToGrid = (value: number, gridFeet: number) => Math.round(value / gridFeet) * gridFeet
 export const feetToPixels = (feet: number) => feet * PIXELS_PER_FOOT
