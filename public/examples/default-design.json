@@ -1,0 +1,81 @@
+{
+  "version": 1,
+  "name": "Default Colorado xeriscape concept",
+  "updatedAt": "2026-06-13T00:00:00.000Z",
+  "siteDimensions": {
+    "units": "feet",
+    "gridFeet": 2,
+    "totalFrontage": 66,
+    "totalDepth": 54,
+    "house": { "x": 0, "y": 0, "width": 66, "depth": 8 },
+    "garage": { "x": 0, "y": 0, "width": 22, "depth": 8 },
+    "porch": { "x": 34, "y": 0, "width": 14, "depth": 8 },
+    "driveway": { "x": 0, "y": 8, "width": 22, "depth": 46 },
+    "frontWalk": { "x": 36, "y": 8, "width": 6, "depth": 38 },
+    "mainBed": { "x": 22, "y": 8, "width": 44, "depth": 34 },
+    "leftSideBed": { "x": 0, "y": 8, "width": 8, "depth": 34 },
+    "sidewalk": { "x": 0, "y": 42, "width": 66, "depth": 4 },
+    "curbStrip": { "x": 22, "y": 46, "width": 44, "depth": 8 },
+    "rightBoundaryX": 66,
+    "slope": { "direction": "street-to-house", "grade": "moderate" },
+    "existingPlants": {
+      "ornamentalCherry": { "x": 8, "y": 24, "canopyRadius": 6, "locked": true, "commonName": "Existing ornamental cherry", "silhouette": "ornamental cherry canopy", "color": "#d8a6b6" },
+      "maple": { "x": 53, "y": 46, "canopyRadius": 7, "locked": true, "commonName": "Existing maple", "silhouette": "existing maple canopy", "color": "#8cb36a" },
+      "blueSpruce": { "x": 58, "y": 14, "canopyRadius": 6, "locked": true, "commonName": "Existing blue spruce", "silhouette": "existing blue spruce", "color": "#5d7f93" }
+    },
+    "utilityCovers": [
+      { "id": "utility-main", "x": 30, "y": 48, "width": 2, "height": 2, "shape": "circle", "locked": false, "avoidPlanting": true }
+    ]
+  },
+  "surfaceZones": {
+    "mainBed": "gray-stone",
+    "curbStrip": "gray-stone",
+    "leftSideBed": "mulch"
+  },
+  "placedPlants": [
+    { "id": "p1", "plantId": "jh-blue-rug", "x": 28, "y": 15, "rotation": 0, "matureSpread": 5, "labelVisible": false, "locked": false },
+    { "id": "p2", "plantId": "jh-blue-rug", "x": 34, "y": 19, "rotation": 0, "matureSpread": 5, "labelVisible": false, "locked": false },
+    { "id": "p3", "plantId": "jo-blue-chip", "x": 41, "y": 16, "rotation": 20, "matureSpread": 4, "labelVisible": true, "locked": false },
+    { "id": "p4", "plantId": "jo-daubs-frosted", "x": 49, "y": 20, "rotation": -12, "matureSpread": 4, "labelVisible": true, "locked": false },
+    { "id": "p5", "plantId": "pz-blue-spruce-globe", "x": 46, "y": 12, "rotation": 0, "matureSpread": 4, "labelVisible": true, "locked": false },
+    { "id": "p6", "plantId": "en-rabbitbrush", "x": 56, "y": 28, "rotation": 0, "matureSpread": 4, "labelVisible": true, "locked": false },
+    { "id": "p7", "plantId": "en-rabbitbrush", "x": 62, "y": 33, "rotation": 0, "matureSpread": 4, "labelVisible": false, "locked": false },
+    { "id": "p8", "plantId": "eo-dwarf-rabbitbrush", "x": 44, "y": 31, "rotation": 0, "matureSpread": 1, "labelVisible": false, "locked": false },
+    { "id": "p9", "plantId": "eo-dwarf-rabbitbrush", "x": 40, "y": 27, "rotation": 0, "matureSpread": 1, "labelVisible": false, "locked": false },
+    { "id": "p10", "plantId": "yf-excalibur", "x": 59, "y": 22, "rotation": 15, "matureSpread": 3, "labelVisible": true, "locked": false },
+    { "id": "p11", "plantId": "yf-color-guard", "x": 61, "y": 39, "rotation": 20, "matureSpread": 3, "labelVisible": true, "locked": false },
+    { "id": "p12", "plantId": "fg-fescue", "x": 32, "y": 39.5, "rotation": 0, "matureSpread": 0.83, "labelVisible": false, "locked": false },
+    { "id": "p13", "plantId": "fg-fescue", "x": 37, "y": 40, "rotation": 0, "matureSpread": 0.83, "labelVisible": false, "locked": false },
+    { "id": "p14", "plantId": "ss-little-bluestem", "x": 45, "y": 40, "rotation": 0, "matureSpread": 1, "labelVisible": true, "locked": false },
+    { "id": "p15", "plantId": "ss-little-bluestem", "x": 50, "y": 41, "rotation": 0, "matureSpread": 1, "labelVisible": true, "locked": false },
+    { "id": "p16", "plantId": "jo-blue-chip", "x": 27, "y": 36, "rotation": 0, "matureSpread": 4, "labelVisible": false, "locked": false }
+  ],
+  "boulders": [
+    { "id": "b1", "x": 31, "y": 16, "sizeFt": 3, "rotation": 157, "labelVisible": false, "locked": false, "seed": 11 },
+    { "id": "b2", "x": 35, "y": 22, "sizeFt": 2, "rotation": 283, "labelVisible": false, "locked": false, "seed": 29 },
+    { "id": "b3", "x": 50, "y": 24, "sizeFt": 4, "rotation": 284, "labelVisible": false, "locked": false, "seed": 52 },
+    { "id": "b4", "x": 59, "y": 35, "sizeFt": 3, "rotation": 191, "labelVisible": false, "locked": false, "seed": 73 },
+    { "id": "b5", "x": 43, "y": 37, "sizeFt": 2, "rotation": 338, "labelVisible": false, "locked": false, "seed": 94 }
+  ],
+  "utilityCovers": [
+    { "id": "utility-main", "x": 30, "y": 48, "width": 2, "height": 2, "shape": "circle", "locked": false, "avoidPlanting": true }
+  ],
+  "dryRiverBed": {
+    "points": [
+      { "x": 54, "y": 11 },
+      { "x": 47, "y": 16 },
+      { "x": 41, "y": 24 },
+      { "x": 48, "y": 31 },
+      { "x": 39, "y": 37 },
+      { "x": 33, "y": 44 }
+    ],
+    "widthFt": 4,
+    "taperEnds": true,
+    "material": "rose-cobble",
+    "addBoulderEdging": true,
+    "randomizeTexture": true
+  },
+  "housePhotoReference": null,
+  "selectedStonePalette": { "main": "gray-stone", "river": "rose-cobble" },
+  "settings": { "snapToGrid": true, "showLabels": true, "showMatureRings": true, "panMode": false }
+}
