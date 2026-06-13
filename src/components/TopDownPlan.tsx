@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva'
 import type Konva from 'konva'
 import { MATERIAL_LABELS, PIXELS_PER_FOOT, SITE_RECT_LABELS } from '../data'
-import { clamp, coerceWithinSite, feetToPixels, formatFeet, getBoulderPoints, getPlantLabel, plantDefinitionById, roundToGrid } from '../lib/utils'
+import { coerceWithinSite, feetToPixels, formatFeet, getBoulderPoints, getPlantLabel, plantDefinitionById, roundToGrid } from '../lib/utils'
 import type { Boulder, DesignState, ExistingPlantKey, MaterialType, Selection, SiteRectKey, SurfaceZoneKey } from '../types'
 
 type PaletteDrop =
