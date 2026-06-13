@@ -46,7 +46,7 @@ The production build output is written to `dist/`.
 
 ## GitHub Pages deployment
 
-This repository includes a workflow at `/home/runner/work/aurora-xeroscape/aurora-xeroscape/ajrogersmd/aurora-xeroscape/.github/workflows/pages.yml`.
+This repository includes a workflow at `.github/workflows/pages.yml`.
 
 - By default, Vite uses `base: '/xeriscape-designer/'`.
 - The workflow overrides that with `VITE_BASE_PATH=/${{ github.event.repository.name }}/` so the site works from the repository Pages subpath.
@@ -66,7 +66,7 @@ VITE_BASE_PATH=/custom-subpath/ npm run build
 
 ## Data files
 
-- Example saved design JSON: `/home/runner/work/aurora-xeroscape/aurora-xeroscape/ajrogersmd/aurora-xeroscape/public/examples/default-design.json`
+- Example saved design JSON: `public/examples/default-design.json`
 - User work and presets are stored in browser `localStorage`
 
 ## App usage summary
